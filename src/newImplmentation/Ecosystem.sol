@@ -111,7 +111,7 @@ contract Ecosystem is  {
             userDeposits[msg.sender] += ecosystem.entryPrice;
 
             //Calculate the Amount of Gtoken to be minted actually 
-             uint256 appreciationAmountPerUser = ecosystem.entryPrice * ecosystem.appreciationPercentage / 100;
+            uint256 appreciationAmountPerUser = ecosystem.entryPrice * ecosystem.appreciationPercentage / 100;
             IEscrow escrow = IEscrow(escrowAddress);
             escrow.transferToEcosystem(ecosystem.assetAddress, _ecosystemId, appreciationAmountPerUser);
             uint256 totalGTokenAmount = ecosystem.entryPrice + appreciationAmountPerUser;
@@ -121,6 +121,28 @@ contract Ecosystem is  {
 
             emit UserEnteredEcosystem(ecosystemId, msg.sender, ecosystem.entryPrice);
     }
+
+    function withdraw(uint256 _ecosystemId, uint256 _amount) external {
+    EcosystemData storage ecosystem = ecosystems[_ecosystemId];
+    require(userParticipation[_ecosystemId][msg.sender], "User not part of the ecosystem");
+    require(_amount >= ecosystem.threshold, "Amount below threshold");
+
+    GToken gToken = GToken(ecosystem.wrappedToken);
+    require(gToken.balanceOf(msg.sender) >= _amount, "Insufficient GToken balance");
+    
+    gToken.burnFrom(msg.sender, _amount);
+
+    uint256 assetAmount = calculateAssetAmount(_amount, ecosystem);
+
+    IEscrow escrow = IEscrow(escrowAddress);
+    escrow.transferAssets(ecosystem.assetAddress, _ecosystemId, assetAmount, msg.sender);
+
+    emit UserWithdrawn(_ecosystemId, msg.sender, assetAmount);
+}
+
+function calculateAssetAmount(uint256 _gTokenAmount, EcosystemData storage ecosystem) private view returns (uint256) {
+}
+
 
      function getEcosystemDetails(uint256 _ecosystemId) external view returns (EcosystemData memory) {
         return ecosystems[_ecosystemId];
@@ -133,4 +155,8 @@ contract Ecosystem is  {
         }
         return ids;
      }
+     function isUserPartOfEcosystem(uint256 _ecosystemId, address _user) external view returns (bool) {
+    return userParticipation[_ecosystemId][_user];
+}
+
 }
